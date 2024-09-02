@@ -7,7 +7,6 @@ import type { IAuthService } from "./service";
 
 type InitAuthHttpHandlerOptions = {
   jwt: IJWT;
-  jwtAuthPublicKey: string;
   authService: IAuthService;
 };
 
@@ -29,15 +28,12 @@ export function initAuthHttpHandler(
     async (c) => {
       const data = c.req.valid("json");
       const userId = await authService.Login(data);
-      const [accessToken, accessPublicKey, refreshToken, refreshPublicKey] =
-        await generateJWT(userId);
+      const [accessToken, refreshToken] = await generateJWT(userId);
 
       return c.json(
         {
           access_token: accessToken,
-          access_public_key: accessPublicKey,
           refresh_token: refreshToken,
-          refresh_public_key: refreshPublicKey,
         },
         200,
       );
@@ -50,15 +46,12 @@ export function initAuthHttpHandler(
     async (c) => {
       const data = c.req.valid("json");
       const userId = await authService.Register(data);
-      const [accessToken, accessPublicKey, refreshToken, refreshPublicKey] =
-        await generateJWT(userId);
+      const [accessToken, refreshToken] = await generateJWT(userId);
 
       return c.json(
         {
           access_token: accessToken,
-          access_public_key: accessPublicKey,
           refresh_token: refreshToken,
-          refresh_public_key: refreshPublicKey,
         },
         200,
       );

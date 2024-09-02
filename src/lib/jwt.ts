@@ -1,124 +1,67 @@
-import type { webcrypto } from "crypto";
-import { JWT as ZothJWT } from "zoth-node";
-import { ED25519 } from "zoth-node/signature";
+import { randomBytes } from "crypto";
+import { sign } from "hono/jwt";
 
 export interface IJWT {
-  Generate(userId: string): Promise<[string, string, string, string]>;
-  AccessTokenVerify(
-    token: string,
-    accessPublicKey: string,
-  ): ReturnType<ZothJWT["VerifyAccessToken"]>;
-  RefreshTokenVerify(
-    token: string,
-    refreshPublicKey: string,
-  ): ReturnType<ZothJWT["VerifyRefreshToken"]>;
+  Generate(userId: string): Promise<[string, string]>;
 }
 
-export class JWT extends ZothJWT implements IJWT {
-  #uidKey = "sub";
-  constructor(issuer: string, audience: string) {
-    super(issuer, audience);
+export class JWT implements IJWT {
+  #accessPrivateKey: string;
+  #refreshPrivateKey: string;
+  #issuer: string;
+  #audience: string | string[];
+
+  constructor(
+    accessPrivateKey: string,
+    refreshPrivateKey: string,
+    issuer: string,
+    audience: string | string[],
+  ) {
+    this.#accessPrivateKey = accessPrivateKey;
+    this.#refreshPrivateKey = refreshPrivateKey;
+    this.#issuer = issuer;
+    this.#audience = audience;
   }
 
-  async ED25519PublicKeyToString(publicKey: webcrypto.CryptoKey) {
-    // Export the key
-    const exported = await crypto.subtle.exportKey("spki", publicKey);
+  async Generate(userId: string): Promise<[string, string]> {
+    const accessBuffer = randomBytes(32);
+    const accessRandId = accessBuffer.toString("hex");
 
-    // Convert ArrayBuffer to Base64 string
-    const uint8Array = new Uint8Array(exported);
-    const binaryString = uint8Array.reduce(
-      (str, byte) => str + String.fromCharCode(byte),
-      "",
-    );
-    const exportedAsString = btoa(binaryString);
+    const accessClaims = {
+      iss: this.#issuer,
+      aud: this.#audience,
+      exp: Math.floor((Date.now() + 1 * 60 * 60 * 1000) / 1000), // One hour from now
+      nbf: Math.floor(Date.now() / 1000),
+      iat: Math.floor(Date.now() / 1000),
+      jti: accessRandId,
+      sub: userId,
+    };
 
-    return exportedAsString;
-  }
-
-  async StringToED25519PublicKey(base64String: string) {
-    // Decode Base64 string to ArrayBuffer
-    const binaryString = atob(base64String);
-    const binaryDer = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      binaryDer[i] = binaryString.charCodeAt(i);
-    }
-
-    // Import the key
-    return await crypto.subtle.importKey(
-      "spki",
-      binaryDer,
-      {
-        name: "Ed25519",
-        namedCurve: "Ed25519",
-      },
-      true,
-      ["verify"],
-    );
-  }
-
-  async Generate(userId: string): Promise<[string, string, string, string]> {
-    const ed25519Signature = new ED25519();
-    const accessKey = await ed25519Signature.GenerateKey();
-    const refreshKey = await ed25519Signature.GenerateKey();
-
-    const [accessToken, refreshToken] = await this.Sign(
-      accessKey.privateKey,
-      refreshKey.privateKey,
-      {
-        [this.#uidKey]: userId,
-      },
+    const accessToken = await sign(
+      accessClaims,
+      this.#accessPrivateKey,
+      "HS256",
     );
 
-    const accessPublicKeyString = await this.ED25519PublicKeyToString(
-      accessKey.publicKey,
-    );
-    const refreshPublicKeyString = await this.ED25519PublicKeyToString(
-      refreshKey.publicKey,
-    );
+    const refreshBuffer = randomBytes(32);
+    const refreshRandId = refreshBuffer.toString("hex");
 
-    return [
-      accessToken,
-      accessPublicKeyString,
-      refreshToken,
-      refreshPublicKeyString,
-    ];
-  }
+    const refreshClaims = {
+      iss: this.#issuer,
+      aud: this.#audience,
+      exp: Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000), // 24 hour from now
+      nbf: Math.floor((Date.now() + 59 * 60 * 1000) / 1000), // 59 minute
+      iat: Math.floor(Date.now() / 1000),
+      jti: refreshRandId,
+      sub: userId,
+    };
 
-  async AccessTokenVerify(
-    token: string,
-    accessPublicKey: string,
-  ): ReturnType<ZothJWT["VerifyAccessToken"]> {
-    const accessPublicCryptoKey =
-      await this.StringToED25519PublicKey(accessPublicKey);
-    const jwtPayload = await this.VerifyAccessToken(
-      token,
-      accessPublicCryptoKey,
+    const refreshToken = await sign(
+      refreshClaims,
+      this.#refreshPrivateKey,
+      "HS256",
     );
 
-    const uid = jwtPayload[this.#uidKey];
-    if (!uid) {
-      throw new Error("token claims invalid");
-    }
-
-    return jwtPayload;
-  }
-
-  async RefreshTokenVerify(
-    token: string,
-    refreshPublicKey: string,
-  ): ReturnType<ZothJWT["VerifyRefreshToken"]> {
-    const refreshPublicCryptoKey =
-      await this.StringToED25519PublicKey(refreshPublicKey);
-    const jwtPayload = await this.VerifyRefreshToken(
-      token,
-      refreshPublicCryptoKey,
-    );
-
-    const uid = jwtPayload[this.#uidKey];
-    if (!uid) {
-      throw new Error("token claims invalid");
-    }
-
-    return jwtPayload;
+    return [accessToken, refreshToken];
   }
 }

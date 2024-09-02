@@ -1,11 +1,10 @@
+import { jwt } from "hono/jwt";
+
 import type { AppType } from "./app";
-import { JWT_AUTH_PUBLIC_KEY } from "./constants";
 
 import { ULID } from "./lib/identifer";
 import { JWT } from "./lib/jwt";
 import { Argon2id } from "./lib/password";
-
-import { jws } from "./middlewares/jws";
 
 import { initAuthHttpHandler } from "./features/auth/http.handler";
 import { AuthRepository } from "./features/auth/repository";
@@ -17,13 +16,15 @@ export function initRoute(honoApp: AppType) {
   const argon2id = new Argon2id();
   const ulid = new ULID();
 
-  const authzJWT = new JWT(process.env.JWT_ISSUER, process.env.JWT_AUDIENCE);
+  const authzJWT = new JWT(
+    process.env.JWT_ACCESS_SECRET,
+    process.env.JWT_REFRESH_SECRET,
+    process.env.JWT_ISSUER,
+    process.env.JWT_AUDIENCE.split(","),
+  );
 
-  const jwsMiddleware = jws({
-    headerPublicKey: JWT_AUTH_PUBLIC_KEY,
-    verifier: async (token, publicKey) => {
-      return authzJWT.AccessTokenVerify(token, publicKey);
-    },
+  const jwsMiddleware = jwt({
+    secret: process.env.JWT_ACCESS_SECRET,
   });
 
   const authRepository = new AuthRepository();
@@ -31,7 +32,6 @@ export function initRoute(honoApp: AppType) {
   const authHttpHandler = initAuthHttpHandler({
     authService,
     jwt: authzJWT,
-    jwtAuthPublicKey: JWT_AUTH_PUBLIC_KEY,
   });
   honoApp.route("/api/v1/auth", authHttpHandler.apiRoute);
 
