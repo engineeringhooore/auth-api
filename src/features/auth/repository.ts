@@ -1,19 +1,19 @@
 import { NotFoundError } from "@/exceptions/not-found.error";
 import { sql } from "@/lib/db";
-import { Auth, type IAuth } from "@/types/auth";
+import { Auth,  } from "@/types/auth";
 import type { AuthTable } from "@/types/auth-table";
 
 export interface IAuthRepository {
-  Insert(auth: IAuth): Promise<void>;
-  GetByUsername(username: string): Promise<IAuth>;
+  Insert(auth: Auth): Promise<void>;
+  GetByUsername(username: string): Promise<Auth>;
 }
 
 export class AuthRepository implements IAuthRepository {
-  async Insert(auth: IAuth): Promise<void> {
+  async Insert(auth: Auth): Promise<void> {
     await sql`INSERT INTO auth (id, username, password) VALUES (${auth.GetId()}, ${auth.GetUsername()}, ${auth.GetPassword()})`;
   }
 
-  async GetByUsername(username: string): Promise<IAuth> {
+  async GetByUsername(username: string): Promise<Auth> {
     const [auth]: [AuthTable?] =
       await sql`SELECT id, username, password FROM auth WHERE username = ${username}`;
 

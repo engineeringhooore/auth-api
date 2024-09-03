@@ -1,10 +1,4 @@
-export interface IAuth {
-  GetId(): string;
-  GetUsername(): string;
-  GetPassword(): string;
-}
-
-export class Auth implements IAuth {
+export class Auth {
   #id: string;
   #username: string;
   #password: string;
