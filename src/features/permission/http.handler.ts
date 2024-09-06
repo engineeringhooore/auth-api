@@ -1,5 +1,6 @@
 import type { AppType } from "@/app";
-import { zValidator } from "@hono/zod-validator";
+import { validator } from "hono/validator";
+import { zValidator } from "@/middlewares/zod-validator";
 import { Hono, type MiddlewareHandler } from "hono";
 import { verifySchema } from "./request.schema";
 
@@ -15,7 +16,7 @@ export function initPermissionHttpHandler(
 
   const verifyHandler = apiRoute.post(
     "/verify",
-    zValidator("json", verifySchema),
+    validator("json", zValidator(verifySchema)),
     async (c) => {
       const payload = c.get("jwtPayload");
       return c.json({ user_id: payload.sub }, 200);

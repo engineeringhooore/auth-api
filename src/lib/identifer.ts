@@ -1,11 +1,11 @@
-import { ulid } from "ulid";
+import { v7 as uuidv7 } from "uuid";
 
 export interface IIdentifer {
   Generate(): string;
 }
 
-export class ULID implements IIdentifer {
+export class Identifier implements IIdentifer {
   Generate(): string {
-    return ulid();
+    return uuidv7();
   }
 }

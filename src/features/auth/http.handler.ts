@@ -1,6 +1,7 @@
 import type { AppType } from "@/app";
 import type { IJWT } from "@/lib/jwt";
-import { zValidator } from "@hono/zod-validator";
+import { validator } from "hono/validator";
+import { zValidator } from "@/middlewares/zod-validator";
 import { Hono, type MiddlewareHandler } from "hono";
 import { loginSchema } from "./request.schema";
 import type { IAuthService } from "./service";
@@ -24,7 +25,7 @@ export function initAuthHttpHandler(
 
   const loginHandler = apiRoute.post(
     "/login",
-    zValidator("json", loginSchema),
+    validator("json", zValidator(loginSchema)),
     async (c) => {
       const data = c.req.valid("json");
       const userId = await authService.Login(data);
@@ -42,7 +43,7 @@ export function initAuthHttpHandler(
 
   const registerHandler = apiRoute.post(
     "/register",
-    zValidator("json", loginSchema),
+    validator("json", zValidator(loginSchema)),
     async (c) => {
       const data = c.req.valid("json");
       const userId = await authService.Register(data);

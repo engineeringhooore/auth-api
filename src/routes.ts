@@ -2,7 +2,7 @@ import { jwt } from "hono/jwt";
 
 import type { AppType } from "./app";
 
-import { ULID } from "./lib/identifer";
+import { Identifier } from "./lib/identifer";
 import { JWT } from "./lib/jwt";
 import { Argon2id } from "./lib/password";
 
@@ -14,7 +14,7 @@ import { initPermissionHttpHandler } from "./features/permission/http.handler";
 
 export function initRoute(honoApp: AppType) {
   const argon2id = new Argon2id();
-  const ulid = new ULID();
+  const identifier = new Identifier();
 
   const authzJWT = new JWT(
     process.env.JWT_ACCESS_SECRET,
@@ -28,7 +28,7 @@ export function initRoute(honoApp: AppType) {
   });
 
   const authRepository = new AuthRepository();
-  const authService = new AuthService(ulid, argon2id, authRepository);
+  const authService = new AuthService(identifier, argon2id, authRepository);
   const authHttpHandler = initAuthHttpHandler({
     authService,
     jwt: authzJWT,
